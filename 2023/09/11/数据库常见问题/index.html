@@ -11,18 +11,12 @@
 
 <title>数据库常见问题</title>
 <meta name="keywords" content="数据库常见问题, Blog">
-<meta name="description" content="1 索引相关2 事务相关1 事务的四大特性？原子性，持久性，隔离性，一致性
-2 并行事务有哪些问题？脏读：一个事务读到了另一个未提交事务修改的数据
-不可重复读：在一个事务内多次读取同一个数据，每次读取到的数据都不同
-幻读：在一个事务内多次查">
+<meta name="description" content="">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta property="og:title" content="数据库常见问题">
-<meta property="og:description" content="1 索引相关2 事务相关1 事务的四大特性？原子性，持久性，隔离性，一致性
-2 并行事务有哪些问题？脏读：一个事务读到了另一个未提交事务修改的数据
-不可重复读：在一个事务内多次读取同一个数据，每次读取到的数据都不同
-幻读：在一个事务内多次查">
+<meta property="og:description" content="">
 
 <link rel="shortcut icon" href="/favicon.ico">
 <link rel="stylesheet" href="/style/main.css">
@@ -89,55 +83,11 @@
       </div>
       <div class="post-content-wrapper">
         <div class="post-content">
-          <h1 id="1-索引相关"><a href="#1-索引相关" class="headerlink" title="1 索引相关"></a>1 索引相关</h1><h1 id="2-事务相关"><a href="#2-事务相关" class="headerlink" title="2 事务相关"></a>2 事务相关</h1><h2 id="1-事务的四大特性？"><a href="#1-事务的四大特性？" class="headerlink" title="1 事务的四大特性？"></a>1 事务的四大特性？</h2><p>原子性，持久性，隔离性，一致性</p>
-<h2 id="2-并行事务有哪些问题？"><a href="#2-并行事务有哪些问题？" class="headerlink" title="2 并行事务有哪些问题？"></a>2 并行事务有哪些问题？</h2><p>脏读：一个事务读到了另一个未提交事务修改的数据</p>
-<p>不可重复读：在一个事务内多次读取同一个数据，每次读取到的数据都不同</p>
-<p>幻读：在一个事务内多次查询某个条件的记录数量不相等</p>
-<h2 id="3-事务的隔离级别？"><a href="#3-事务的隔离级别？" class="headerlink" title="3 事务的隔离级别？"></a>3 事务的隔离级别？</h2><p>读未提交：脏读，幻读，不可重复读</p>
-<p>读已提交：不可重复读，幻读</p>
-<p>可重复读：幻读</p>
-<p>串行化：</p>
-<h2 id="4-MySQL是如何解决的？"><a href="#4-MySQL是如何解决的？" class="headerlink" title="4 MySQL是如何解决的？"></a>4 MySQL是如何解决的？</h2><p>串行化：给记录加上读写锁，多个事务进行读写操作时，只能等前一个事务结束后才能执行</p>
-<p>可重复读：mvcc+readview，在事务的开始会生成一个readview，只能读取事务开始时能看到的数据</p>
-<p>读已提交：mvcc+readview，事务中每次执行查询语句都会生成一个readview，所以多次查询的结果可能不同</p>
-<p>读未提交：直接读取最新的数据</p>
-<h1 id="3-日志相关"><a href="#3-日志相关" class="headerlink" title="3 日志相关"></a>3 日志相关</h1><h2 id="1-Innodb中有哪几种日志？"><a href="#1-Innodb中有哪几种日志？" class="headerlink" title="1 Innodb中有哪几种日志？"></a>1 Innodb中有哪几种日志？</h2><p>redo log：实现了事务的持久性，主要用于故障恢复</p>
-<p>undo log：实现了事务的原子性，主要用于事务回滚和MVCC</p>
-<p>binlog：server层生成的日志，主要用于数据备份和主从复制</p>
-<h2 id="2-undo-log的实现原理？"><a href="#2-undo-log的实现原理？" class="headerlink" title="2 undo log的实现原理？"></a>2 undo log的实现原理？</h2><p>不同操作的undo log格式不同：</p>
-<ul>
-<li>插入操作：记录这条记录的主键，回滚时删除这条记录即可</li>
-<li>更新操作：记录更新的所有列的旧值</li>
-<li>删除操作：记录所有列的值</li>
-</ul>
-<p>每一个undo log中都有字段：</p>
-<ul>
-<li>roll_pointer: 指向前一条undo log，多个undo log通过这个指针串成一条链表，构成版本链</li>
-<li>trx_id：事务ID</li>
-</ul>
-<h2 id="3-为什么需要redo-log"><a href="#3-为什么需要redo-log" class="headerlink" title="3 为什么需要redo log?"></a>3 为什么需要redo log?</h2><p>mysql为了提高IO的效率，所有的写操作都是在内存中完成的，当读取一条记录时，会把该记录所在页全部读取到内存中的buffer pool中，后续的修改也在内存中完成。</p>
-<p>buffer pool中被修改过的页称为脏页，后台线程会在合适的时机把脏页刷新到磁盘中。如果在这个过程中，系统崩溃，内存中的数据还未写入磁盘就会导致数据丢失。</p>
-<p>为了保证数据不丢失，使用redo log机制</p>
-<h2 id="4-为什么不直接把修改后的数据刷新到磁盘？"><a href="#4-为什么不直接把修改后的数据刷新到磁盘？" class="headerlink" title="4 为什么不直接把修改后的数据刷新到磁盘？"></a>4 为什么不直接把修改后的数据刷新到磁盘？</h2><p>InnoDB以页为单位进行磁盘IO，每次修改都刷新整个页太浪费了</p>
-<p>一个事务可能会修改多个页面，这些页面在磁盘中可能并不相邻，需要进行很多的随机IO，相对了顺序IO很慢</p>
-<h2 id="５-redo-log写满了怎么半？"><a href="#５-redo-log写满了怎么半？" class="headerlink" title="５ redo log写满了怎么半？"></a>５ redo log写满了怎么半？</h2><p>因为已经落盘的数据的redo log就已经没用了可以被覆盖，redo log文件写入的过程类似一个环形链表，用一个check point类似于链表的头，代表有效的redo log的开始，用一个write pos代表当前写入的位置，也就是有效的redo log的结束。</p>
-<p>当写到日志文件的结尾后就从头开始写，如果write pos追上了check point就说明redo log已经写满了，此时mysql会阻塞等待将buffer pool中的数据刷新到磁盘中</p>
-<h2 id="6-什么是binlog"><a href="#6-什么是binlog" class="headerlink" title="6 什么是binlog?"></a>6 什么是binlog?</h2><p>会记录每条sql语句的操作，主要用途是备份恢复和主从复制</p>
-<h2 id="7-binlog如何实现主从复制？"><a href="#7-binlog如何实现主从复制？" class="headerlink" title="7 binlog如何实现主从复制？"></a>7 binlog如何实现主从复制？</h2><p>从库会读取主库的binlog，然后将binlog中的数据同步到自己的库中</p>
-<p>主从复制模型主要有三种模型：同步复制，异步复制，半同步复制</p>
-<h2 id="8-执行一条sql时会写哪些日志？"><a href="#8-执行一条sql时会写哪些日志？" class="headerlink" title="8 执行一条sql时会写哪些日志？"></a>8 执行一条sql时会写哪些日志？</h2><p>读操作不会写日志</p>
-<p>写操作首先会写对应的undo log，然后写undo log的redo log，然后执行写操作，然后写redo log，执行完成后，写binlog</p>
-<h1 id="4-锁相关"><a href="#4-锁相关" class="headerlink" title="4 锁相关"></a>4 锁相关</h1><h2 id="1-MySQL中锁的分类"><a href="#1-MySQL中锁的分类" class="headerlink" title="1 MySQL中锁的分类"></a>1 MySQL中锁的分类</h2><p>从锁的粒度可以分为：全局锁，表锁，行锁</p>
-<p>从共享&#x2F;独占可以分为：独占锁，共享锁</p>
-<h2 id="2-常用的行锁"><a href="#2-常用的行锁" class="headerlink" title="2 常用的行锁"></a>2 常用的行锁</h2><p>记录锁</p>
-<p>间隙锁</p>
-<p>next-key锁</p>
-<p>插入意向锁</p>
-
+          
         </div>
           
         <div class="top-div">
-          <ol class="top-box"><li class="top-box-item top-box-level-1"><a class="top-box-link" href="#1-%E7%B4%A2%E5%BC%95%E7%9B%B8%E5%85%B3"><span class="top-box-text">1 索引相关</span></a></li><li class="top-box-item top-box-level-1"><a class="top-box-link" href="#2-%E4%BA%8B%E5%8A%A1%E7%9B%B8%E5%85%B3"><span class="top-box-text">2 事务相关</span></a><ol class="top-box-child"><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#1-%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%9B%9B%E5%A4%A7%E7%89%B9%E6%80%A7%EF%BC%9F"><span class="top-box-text">1 事务的四大特性？</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#2-%E5%B9%B6%E8%A1%8C%E4%BA%8B%E5%8A%A1%E6%9C%89%E5%93%AA%E4%BA%9B%E9%97%AE%E9%A2%98%EF%BC%9F"><span class="top-box-text">2 并行事务有哪些问题？</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#3-%E4%BA%8B%E5%8A%A1%E7%9A%84%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB%EF%BC%9F"><span class="top-box-text">3 事务的隔离级别？</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#4-MySQL%E6%98%AF%E5%A6%82%E4%BD%95%E8%A7%A3%E5%86%B3%E7%9A%84%EF%BC%9F"><span class="top-box-text">4 MySQL是如何解决的？</span></a></li></ol></li><li class="top-box-item top-box-level-1"><a class="top-box-link" href="#3-%E6%97%A5%E5%BF%97%E7%9B%B8%E5%85%B3"><span class="top-box-text">3 日志相关</span></a><ol class="top-box-child"><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#1-Innodb%E4%B8%AD%E6%9C%89%E5%93%AA%E5%87%A0%E7%A7%8D%E6%97%A5%E5%BF%97%EF%BC%9F"><span class="top-box-text">1 Innodb中有哪几种日志？</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#2-undo-log%E7%9A%84%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86%EF%BC%9F"><span class="top-box-text">2 undo log的实现原理？</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#3-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81redo-log"><span class="top-box-text">3 为什么需要redo log?</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#4-%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%9B%B4%E6%8E%A5%E6%8A%8A%E4%BF%AE%E6%94%B9%E5%90%8E%E7%9A%84%E6%95%B0%E6%8D%AE%E5%88%B7%E6%96%B0%E5%88%B0%E7%A3%81%E7%9B%98%EF%BC%9F"><span class="top-box-text">4 为什么不直接把修改后的数据刷新到磁盘？</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#%EF%BC%95-redo-log%E5%86%99%E6%BB%A1%E4%BA%86%E6%80%8E%E4%B9%88%E5%8D%8A%EF%BC%9F"><span class="top-box-text">５ redo log写满了怎么半？</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#6-%E4%BB%80%E4%B9%88%E6%98%AFbinlog"><span class="top-box-text">6 什么是binlog?</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#7-binlog%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6%EF%BC%9F"><span class="top-box-text">7 binlog如何实现主从复制？</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#8-%E6%89%A7%E8%A1%8C%E4%B8%80%E6%9D%A1sql%E6%97%B6%E4%BC%9A%E5%86%99%E5%93%AA%E4%BA%9B%E6%97%A5%E5%BF%97%EF%BC%9F"><span class="top-box-text">8 执行一条sql时会写哪些日志？</span></a></li></ol></li><li class="top-box-item top-box-level-1"><a class="top-box-link" href="#4-%E9%94%81%E7%9B%B8%E5%85%B3"><span class="top-box-text">4 锁相关</span></a><ol class="top-box-child"><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#1-MySQL%E4%B8%AD%E9%94%81%E7%9A%84%E5%88%86%E7%B1%BB"><span class="top-box-text">1 MySQL中锁的分类</span></a></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#2-%E5%B8%B8%E7%94%A8%E7%9A%84%E8%A1%8C%E9%94%81"><span class="top-box-text">2 常用的行锁</span></a></li></ol></li></ol>
+          
         </div>
           
       </div>
@@ -145,9 +95,9 @@
 
     
       <div class="next-post">
-        <a class="purple-link" href="/2023/05/12/hello-world/">
+        <a class="purple-link" href="/2023/05/12/Java%E7%BA%BF%E7%A8%8B%E6%B1%A0/">
           <h3 class="post-title">
-            下一篇：Hello World
+            下一篇：Java线程池的原理
           </h3>
         </a>
       </div>

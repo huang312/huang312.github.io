@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    
+
+    
+<script>!function(){var e=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,t=localStorage.getItem("use-color-scheme")||"auto";("dark"===t||e&&"light"!==t)&&document.documentElement.classList.toggle("dark",!0)}()</script>
+    
+
+<meta charset="utf-8" >
+
+<title>并发访问ArrayList会出现什么问题？</title>
+<meta name="keywords" content="并发访问ArrayList会出现什么问题？, Blog">
+<meta name="description" content="1 同时写入和遍历实验代码，一个线程读，一个线程写。读线程使用迭代器的方式读取。
+12345678910111213141516171819202122232425262728public class ArrayListConcurrent">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta property="og:title" content="并发访问ArrayList会出现什么问题？">
+<meta property="og:description" content="1 同时写入和遍历实验代码，一个线程读，一个线程写。读线程使用迭代器的方式读取。
+12345678910111213141516171819202122232425262728public class ArrayListConcurrent">
+
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="stylesheet" href="/style/main.css">
+
+  <meta name="generator" content="Hexo 6.3.0"></head>
+  <body>
+    <div id="app" class="main">
+
+<div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="http://example.com">
+        <img class="avatar" src="/images/avatar.png" alt="logo" width="32px" height="32px">
+      </a>
+      <a href="http://example.com">
+        <h1 class="site-title">Blog</h1>
+      </a>
+    </div>
+    <div class="right">
+        <i class="icon menu-switch icon-menu-outline" ></i>
+    </div>
+  </div>
+</div>
+
+<div class="menu-container" style="height: 0;opacity: 0;">
+<nav class="menu-list">
+  
+    
+      <a href="/" class="menu purple-link">
+        首页
+      </a>
+    
+  
+    
+      <a href="/tags" class="menu purple-link">
+        标签
+      </a>
+    
+  
+    
+      <a href="/archives" class="menu purple-link">
+        归档
+      </a>
+    
+  
+    
+      <a href="/about" class="menu purple-link">
+        关于
+      </a>
+    
+  
+</nav>
+</div>
+
+
+
+  <div class="content-container">
+    <div class="post-detail">
+      
+      <h2 class="post-title">并发访问ArrayList会出现什么问题？</h2>
+      <div class="post-info post-detail-info">
+        <span><i class="icon icon-calendar-outline"></i> 2023-09-12</span>
+        
+      </div>
+      <div class="post-content-wrapper">
+        <div class="post-content">
+          <h2 id="1-同时写入和遍历"><a href="#1-同时写入和遍历" class="headerlink" title="1 同时写入和遍历"></a>1 同时写入和遍历</h2><p>实验代码，一个线程读，一个线程写。读线程使用迭代器的方式读取。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ArrayListConcurrent</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        ArrayList&lt;Integer&gt; list = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;();</span><br><span class="line">        <span class="type">Random</span> <span class="variable">random</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Random</span>();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Thread</span>(()-&gt;&#123;</span><br><span class="line">            <span class="keyword">while</span>(<span class="literal">true</span>)&#123;</span><br><span class="line">                list.add(random.nextInt());</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    Thread.sleep(<span class="number">1000</span>);</span><br><span class="line">                &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                    e.printStackTrace();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;).start();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Thread</span>(() -&gt;&#123;</span><br><span class="line">            <span class="keyword">while</span> (<span class="literal">true</span>)&#123;</span><br><span class="line">                System.out.println(list); <span class="comment">// 这里toString()方法会调用迭代器进行遍历</span></span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    Thread.sleep(<span class="number">1000</span>);</span><br><span class="line">                &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                    e.printStackTrace();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;).start();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>执行结果</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[<span class="number">1561484153</span>]</span><br><span class="line">[<span class="number">1561484153</span>, <span class="number">633207904</span>]</span><br><span class="line">Exception in thread <span class="string">&quot;Thread-1&quot;</span> java.util.ConcurrentModificationException</span><br><span class="line">	at java.base/java.util.ArrayList$Itr.checkForComodification(ArrayList.java:<span class="number">1043</span>)</span><br><span class="line">	at java.base/java.util.ArrayList$Itr.next(ArrayList.java:<span class="number">997</span>)</span><br><span class="line">	at java.base/java.util.AbstractCollection.toString(AbstractCollection.java:<span class="number">472</span>)</span><br><span class="line">	at java.base/java.lang.String.valueOf(String.java:<span class="number">2951</span>)</span><br><span class="line">	at java.base/java.io.PrintStream.println(PrintStream.java:<span class="number">897</span>)</span><br><span class="line">	at com.xxxx.concurrent.problem.ArrayListConcurrent.lambda$main$<span class="number">1</span>(ArrayListConcurrent.java:<span class="number">39</span>)</span><br><span class="line">	at java.base/java.lang.Thread.run(Thread.java:<span class="number">834</span>)</span><br></pre></td></tr></table></figure>
+
+<p>出现了ConcurrentModificationException</p>
+<h3 id="原因分析"><a href="#原因分析" class="headerlink" title="原因分析"></a>原因分析</h3><p>在通过迭代器遍历ArrayList时，会生成一个Itr对象</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Iterator&lt;E&gt; <span class="title function_">iterator</span><span class="params">()</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">Itr</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在调用这个Itr对象的next()方法时，会首先调用checkForComodification()方法检查变量modCount的值是否符合预期</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="variable">expectedModCount</span> <span class="operator">=</span> modCount;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> E <span class="title function_">next</span><span class="params">()</span> &#123;</span><br><span class="line">    checkForComodification();</span><br><span class="line">    <span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> cursor;</span><br><span class="line">    <span class="keyword">if</span> (i &gt;= size)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">NoSuchElementException</span>();</span><br><span class="line">    Object[] elementData = ArrayList.<span class="built_in">this</span>.elementData;</span><br><span class="line">    <span class="keyword">if</span> (i &gt;= elementData.length)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ConcurrentModificationException</span>();</span><br><span class="line">    cursor = i + <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">return</span> (E) elementData[lastRet = i];</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title function_">checkForComodification</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (modCount != expectedModCount)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">ConcurrentModificationException</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>每次调用add方法或者remove方法时，modCount的值都会增加。而在遍历list时生成的迭代器对象会获取当前的modCount，如果在遍历的过程中，另外的线程调用了add或者remove方法，则会导致迭代器报错。</p>
+<h2 id="2-数据覆盖问题"><a href="#2-数据覆盖问题" class="headerlink" title="2 数据覆盖问题"></a>2 数据覆盖问题</h2><p>两个线程分别向ArrayList中写入1000个数据，执行完之后，list中的元素个数不为2000</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">    ArrayList&lt;Integer&gt; list = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;&gt;(<span class="number">8</span>);</span><br><span class="line">    <span class="type">CountDownLatch</span> <span class="variable">latch</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">CountDownLatch</span>(<span class="number">2</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">new</span> <span class="title class_">Thread</span>(()-&gt;&#123;</span><br><span class="line">        <span class="keyword">for</span>(<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">1000</span>; i++)</span><br><span class="line">            list.add(i);</span><br><span class="line">        latch.countDown();</span><br><span class="line">    &#125;).start();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">new</span> <span class="title class_">Thread</span>(()-&gt;&#123;</span><br><span class="line">        <span class="keyword">for</span>(<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">1000</span>; i &lt; <span class="number">2000</span>; i++)</span><br><span class="line">            list.add(i);</span><br><span class="line">        latch.countDown();</span><br><span class="line">    &#125;).start();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        latch.await();</span><br><span class="line">        System.out.println(list.size()); <span class="comment">// 不为2000</span></span><br><span class="line">    &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">        e.printStackTrace();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>因为写入操作不是原子的，线程之间可能会有数据覆盖</p>
+
+        </div>
+          
+        <div class="top-div">
+          <ol class="top-box"><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#1-%E5%90%8C%E6%97%B6%E5%86%99%E5%85%A5%E5%92%8C%E9%81%8D%E5%8E%86"><span class="top-box-text">1 同时写入和遍历</span></a><ol class="top-box-child"><li class="top-box-item top-box-level-3"><a class="top-box-link" href="#%E5%8E%9F%E5%9B%A0%E5%88%86%E6%9E%90"><span class="top-box-text">原因分析</span></a></li></ol></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#2-%E6%95%B0%E6%8D%AE%E8%A6%86%E7%9B%96%E9%97%AE%E9%A2%98"><span class="top-box-text">2 数据覆盖问题</span></a></li></ol>
+        </div>
+          
+      </div>
+    </div>
+
+    
+      <div class="next-post">
+        <a class="purple-link" href="/2023/09/12/SPI%E6%9C%BA%E5%88%B6%E6%98%AF%E5%A6%82%E4%BD%95%E7%A0%B4%E5%9D%8F%E5%8F%8C%E4%BA%B2%E5%A7%94%E6%B4%BE%E6%9C%BA%E5%88%B6%E7%9A%84/">
+          <h3 class="post-title">
+            下一篇：SPI机制是如何破坏双亲委派机制的？
+          </h3>
+        </a>
+      </div>
+    
+  </div>
+
+
+
+
+
+
+
+
+
+
+<footer>
+<div class="site-footer">
+  <div class="social-container">
+    
+      
+        <a aria-label="跳转至github" href="https://github.com/f-dong" target="_blank">
+          <i class="icon icon-github"></i>
+        </a>
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  
+    Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> <a href="https://github.com/f-dong/hexo-theme-minimalism" target="_blank">Theme</a>
+  
+  
+  
+  
+  
+  
+</div>
+</footer>
+
+
+      </div>
+    </div>
+    
+<script id="hexo-configurations"> window.theme_config = {"image":{"lazyload_enable":true,"photo_zoom":"simple-lightbox"}}; window.is_post = true; </script>
+
+<script src="/js/main.js"></script>
+
+
+
+
+
+
+  </body>
+</html>
+

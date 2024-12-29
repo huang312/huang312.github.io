@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    
+
+    
+<script>!function(){var e=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,t=localStorage.getItem("use-color-scheme")||"auto";("dark"===t||e&&"light"!==t)&&document.documentElement.classList.toggle("dark",!0)}()</script>
+    
+
+<meta charset="utf-8" >
+
+<title>SPI机制是如何破坏双亲委派机制的？</title>
+<meta name="keywords" content="SPI机制是如何破坏双亲委派机制的？, Blog">
+<meta name="description" content="《深入理解Java虚拟机》中提到，Java中的SPI机制破坏了类加载的双亲委派机制
+
+为了解决这个问题，Java设计团队只好引入了一个不太优雅的设计：线程上下文类加载器（  Thread Context ClassLoader）。这个类加载">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta property="og:title" content="SPI机制是如何破坏双亲委派机制的？">
+<meta property="og:description" content="《深入理解Java虚拟机》中提到，Java中的SPI机制破坏了类加载的双亲委派机制
+
+为了解决这个问题，Java设计团队只好引入了一个不太优雅的设计：线程上下文类加载器（  Thread Context ClassLoader）。这个类加载">
+
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="stylesheet" href="/style/main.css">
+
+  <meta name="generator" content="Hexo 6.3.0"></head>
+  <body>
+    <div id="app" class="main">
+
+<div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="http://example.com">
+        <img class="avatar" src="/images/avatar.png" alt="logo" width="32px" height="32px">
+      </a>
+      <a href="http://example.com">
+        <h1 class="site-title">Blog</h1>
+      </a>
+    </div>
+    <div class="right">
+        <i class="icon menu-switch icon-menu-outline" ></i>
+    </div>
+  </div>
+</div>
+
+<div class="menu-container" style="height: 0;opacity: 0;">
+<nav class="menu-list">
+  
+    
+      <a href="/" class="menu purple-link">
+        首页
+      </a>
+    
+  
+    
+      <a href="/tags" class="menu purple-link">
+        标签
+      </a>
+    
+  
+    
+      <a href="/archives" class="menu purple-link">
+        归档
+      </a>
+    
+  
+    
+      <a href="/about" class="menu purple-link">
+        关于
+      </a>
+    
+  
+</nav>
+</div>
+
+
+
+  <div class="content-container">
+    <div class="post-detail">
+      
+      <h2 class="post-title">SPI机制是如何破坏双亲委派机制的？</h2>
+      <div class="post-info post-detail-info">
+        <span><i class="icon icon-calendar-outline"></i> 2023-09-12</span>
+        
+      </div>
+      <div class="post-content-wrapper">
+        <div class="post-content">
+          <p>《深入理解Java虚拟机》中提到，Java中的SPI机制破坏了类加载的双亲委派机制</p>
+<blockquote>
+<p>为了解决这个问题，Java设计团队只好引入了一个不太优雅的设计：线程上下文类加载器（  Thread Context ClassLoader）。这个类加载器可以通过java.lang.Thread类的setContextClassLoaser()方法进行设置，如果创建线程时还未设置，它将会从父线程中继承一个，如果在应用程序的全局范围内都没有设置过的话，那这个类加载器默认就是应用程序类加载器。</p>
+<p>为了解决这个问题，Java设计团队只好引入了一个不太优雅的设计：线程上下文类加载器（Thread Context ClassLoader）。这个类加载器可以通过java.lang.Thread类的setContextClassLoaser()方法进行设置，如果创建线程时还未设置，它将会从父线程中继承一个，如果在应用程序的全局范围内都没有设置过的话，那这个类加载器默认就是应用程序类加载器。JNDI服务使用这个线程上下文类加载器去加载所需要的SPI代码，也就是父类加载器请求子类加载器去完成类加载的动作，这种行为实际上就是打通了双亲委派模型的层次结构来逆向使用类加载器，实际上已经违背了双亲委派模型的一般性原则，但这也是无可奈何的事情。Java中所有涉及SPI的加载动作基本上都采用这种方式，例如JNDI、JDBC、JCE、JAXB和JBI等。</p>
+</blockquote>
+<p>本文分析SPI机制是破坏双亲委派机制的详细过程</p>
+<h2 id="SPI机制"><a href="#SPI机制" class="headerlink" title="SPI机制"></a>SPI机制</h2><p>首先写一个简单的SPI的例子</p>
+<p>接口Drive，包含一个drive()方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.xxxx.spi;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">Drive</span> &#123;</span><br><span class="line">    <span class="keyword">void</span> <span class="title function_">drive</span><span class="params">()</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实现类Car</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.xxxx.spi.impl;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.xxxx.spi.Drive;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Car</span> <span class="keyword">implements</span> <span class="title class_">Drive</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">drive</span><span class="params">()</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;Car drive.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实现类Bus</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.xxxx.spi.impl;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> com.xxxx.spi.Drive;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Bus</span> <span class="keyword">implements</span> <span class="title class_">Drive</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">drive</span><span class="params">()</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;Bus drive.&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在resources目录下新建目录<code>META-INF/services</code>，在这个目录下新建文件<code>com.xxxx.spi.Driver</code>，并写入实现类的全类名：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">com.xxxx.spi.impl.Bus</span><br><span class="line">com.xxxx.spi.impl.Car</span><br></pre></td></tr></table></figure>
+
+<p>在main方法中通过ServiceLoader加载Driver接口的实现类，并执行Driver方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Main</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        ServiceLoader&lt;Drive&gt; driverLoader = ServiceLoader.load(Drive.class);</span><br><span class="line">        <span class="keyword">for</span> (Drive drive : driverLoader) &#123;</span><br><span class="line">            drive.drive();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>执行结果</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Bus drive.</span><br><span class="line">Car drive.</span><br></pre></td></tr></table></figure>
+
+<h3 id="SPI机制的作用"><a href="#SPI机制的作用" class="headerlink" title="SPI机制的作用"></a>SPI机制的作用</h3><p>SPI是JDK内置的一种服务提供发现机制，相同的接口，不同的实现</p>
+<h2 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h2><p>SPI可以理解为在运行时动态的加载不同的服务实现，接下来分析SPI加载的过程</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> &lt;S&gt; ServiceLoader&lt;S&gt; <span class="title function_">load</span><span class="params">(Class&lt;S&gt; service)</span> &#123;</span><br><span class="line">    <span class="type">ClassLoader</span> <span class="variable">cl</span> <span class="operator">=</span> Thread.currentThread().getContextClassLoader();</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ServiceLoader</span>&lt;&gt;(Reflection.getCallerClass(), service, cl);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>调用ServiceLoader时会获取当前线程的线程上下文类加载器，这个类加载器默认是应用程序类加载器，也可以通过Thread类的SetContextClassLoader()方法进行设置</p>
+<p>然后在通过迭代器遍历服务实现类时，会通过这个类加载器加载对应的服务实现类</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> Class.forName(cn, <span class="literal">false</span>, loader); <span class="comment">//这里使用的是前面获取的线程上下文类加载器</span></span><br><span class="line">&#125; <span class="keyword">catch</span> (ClassNotFoundException x) &#123;</span><br><span class="line">    fail(service, <span class="string">&quot;Provider &quot;</span> + cn + <span class="string">&quot; not found&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 省略...</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 完成了服务提供者的实例化</span></span><br><span class="line"><span class="keyword">if</span> (service.isAssignableFrom(clazz)) &#123;</span><br><span class="line">    Class&lt;? <span class="keyword">extends</span> <span class="title class_">S</span>&gt; type = (Class&lt;? <span class="keyword">extends</span> <span class="title class_">S</span>&gt;) clazz;</span><br><span class="line">    Constructor&lt;? <span class="keyword">extends</span> <span class="title class_">S</span>&gt; ctor</span><br><span class="line">        = (Constructor&lt;? <span class="keyword">extends</span> <span class="title class_">S</span>&gt;)getConstructor(clazz);</span><br><span class="line">    ProviderImpl&lt;S&gt; p = <span class="keyword">new</span> <span class="title class_">ProviderImpl</span>&lt;S&gt;(service, type, ctor, acc);</span><br><span class="line">    nextProvider = (ProviderImpl&lt;T&gt;) p;</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    fail(service, clazz.getName() + <span class="string">&quot; not a subtype&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="为什么说破坏了双亲委派机制？"><a href="#为什么说破坏了双亲委派机制？" class="headerlink" title="为什么说破坏了双亲委派机制？"></a>为什么说破坏了双亲委派机制？</h3><p>ServiceLoader类是由启动类加载器加载的，按照双亲委派机制的可见性，高层次的类加载器不能加载低层次类的类，而服务提供对象类应该由应用程序类加载器加载，所以这种情况下就无法加载服务提供者</p>
+<p>为了解决这个问题，引入了线程上下文类加载器，默认为应用程序类加载器，这样就可以在启动类加载器中加载底层级的类，这个过程及为打破了双亲委派机制</p>
+<p>但是从另一个角度来说，第三方的服务提供者的类还是由应用程序类加载器进行加载的，并没有破坏不同的类加载器加载不同的类的要求。</p>
+
+        </div>
+          
+        <div class="top-div">
+          <ol class="top-box"><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#SPI%E6%9C%BA%E5%88%B6"><span class="top-box-text">SPI机制</span></a><ol class="top-box-child"><li class="top-box-item top-box-level-3"><a class="top-box-link" href="#SPI%E6%9C%BA%E5%88%B6%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="top-box-text">SPI机制的作用</span></a></li></ol></li><li class="top-box-item top-box-level-2"><a class="top-box-link" href="#%E5%8E%9F%E7%90%86"><span class="top-box-text">原理</span></a><ol class="top-box-child"><li class="top-box-item top-box-level-3"><a class="top-box-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%AF%B4%E7%A0%B4%E5%9D%8F%E4%BA%86%E5%8F%8C%E4%BA%B2%E5%A7%94%E6%B4%BE%E6%9C%BA%E5%88%B6%EF%BC%9F"><span class="top-box-text">为什么说破坏了双亲委派机制？</span></a></li></ol></li></ol>
+        </div>
+          
+      </div>
+    </div>
+
+    
+      <div class="next-post">
+        <a class="purple-link" href="/2023/09/11/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98/">
+          <h3 class="post-title">
+            下一篇：数据库常见问题
+          </h3>
+        </a>
+      </div>
+    
+  </div>
+
+
+
+
+
+
+
+
+
+
+<footer>
+<div class="site-footer">
+  <div class="social-container">
+    
+      
+        <a aria-label="跳转至github" href="https://github.com/f-dong" target="_blank">
+          <i class="icon icon-github"></i>
+        </a>
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  
+    Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> <a href="https://github.com/f-dong/hexo-theme-minimalism" target="_blank">Theme</a>
+  
+  
+  
+  
+  
+  
+</div>
+</footer>
+
+
+      </div>
+    </div>
+    
+<script id="hexo-configurations"> window.theme_config = {"image":{"lazyload_enable":true,"photo_zoom":"simple-lightbox"}}; window.is_post = true; </script>
+
+<script src="/js/main.js"></script>
+
+
+
+
+
+
+  </body>
+</html>
+
